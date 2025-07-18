@@ -3,8 +3,7 @@ package com.hafidh.service;
 import com.hafidh.dto.JwtResponse;
 import com.hafidh.dto.LoginRequest;
 import com.hafidh.dto.SignupRequest;
-import com.hafidh.entity.User;
-import com.hafidh.exception.EmailAlreadyExisteException;
+import com.hafidh.entity.User_old;
 import com.hafidh.repository.UserRepository;
 import com.hafidh.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,7 @@ public class AuthService {
         }
 
 
-        User user = new User();
+        User_old user = new User_old();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setEmail(request.getEmail());
@@ -41,7 +40,7 @@ public class AuthService {
     }
 
     public JwtResponse authenticate(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        User_old user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
