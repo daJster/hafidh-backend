@@ -1,9 +1,8 @@
 package com.hafidh.service;
 
-import com.hafidh.dto.UserDTO;
-import com.hafidh.dto.UserProfileDto;
-import com.hafidh.entity.User;
-import com.hafidh.exception.UserNotFoundException;
+import com.hafidh.dto.user.UserDTO;
+import com.hafidh.dto.user.UserProfileDTO;
+import com.hafidh.entity.User_old;
 import com.hafidh.mapper.UserMapper;
 import com.hafidh.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,20 +18,20 @@ public class UserService {
 
     @Cacheable(value = "user", key = "#userId")
     public UserDTO getUserById(Long userId) {
-        User user = userRepository.findById(userId)
+        User_old user = userRepository.findById(userId)
             .orElseThrow(() -> new UserNotFoundException("User not found"));
         return userMapper.toDTO(user);
     }
     @Cacheable(value = "user", key = "#userEmail")
     public UserDTO getUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
+        User_old user = userRepository.findByEmail(email)
             .orElseThrow(() -> new UserNotFoundException("User not found"));
         return userMapper.toDTO(user);
     }
 
     @CacheEvict(value = "user", key = "#userId")
-    public void updateUserProfile(Long userId, UserProfileDto dto) {
-        User user = userRepository.findById(userId)
+    public void updateUserProfile(Long userId, UserProfileDTO dto) {
+        User_old user = userRepository.findById(userId)
             .orElseThrow(() -> new UserNotFoundException("User not found"));
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());

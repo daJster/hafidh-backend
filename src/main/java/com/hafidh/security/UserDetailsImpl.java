@@ -1,6 +1,6 @@
 package com.hafidh.security;
 
-import com.hafidh.entity.User;
+import com.hafidh.entity.User_old;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,13 +10,13 @@ import java.util.Collections;
 
 public class UserDetailsImpl implements UserDetails {
 
-    private final User user;
+    private final User_old user;
 
-    public UserDetailsImpl(User user) {
+    public UserDetailsImpl(User_old user) {
         this.user = user;
     }
 
-    public User getUser() {
+    public User_old getUser() {
         return user;
     }
 
