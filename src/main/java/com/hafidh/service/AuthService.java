@@ -3,8 +3,9 @@ package com.hafidh.service;
 import com.hafidh.dto.JwtResponse;
 import com.hafidh.dto.LoginRequest;
 import com.hafidh.dto.SignupRequest;
-import com.hafidh.entity.User_old;
-import com.hafidh.repository.UserRepository;
+import com.hafidh.entity.user.User;
+import com.hafidh.exception.EmailAlreadyExisteException;
+import com.hafidh.repository.user.UserRepository;
 import com.hafidh.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,12 +27,13 @@ public class AuthService {
         }
 
 
-        User_old user = new User_old();
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        User user = User.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .email(request.getEmail())
+                .phone(request.getPhone())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .build();
 
         userRepository.save(user);
 
@@ -40,7 +42,7 @@ public class AuthService {
     }
 
     public JwtResponse authenticate(LoginRequest request) {
-        User_old user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

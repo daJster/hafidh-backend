@@ -11,9 +11,12 @@ import com.hafidh.dto.user.UserActivityDTO;
 import com.hafidh.dto.user.UserDTO;
 import com.hafidh.dto.user.UserPreferencesDTO;
 import com.hafidh.dto.user.UserProfileDTO;
+import com.hafidh.entity.user.UserActivity;
 import com.hafidh.enums.Role;
 import com.hafidh.service.UserService;
+import com.hafidh.shared.ApiResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Null;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,19 +43,19 @@ public class UserController {
 
     @Autowired private UserService userService;
 
-    // ==================== USER CRUD OPERATIONS ====================
+    // ==================== CRUD ====================
 
     /**
      * Get user by ID with role-based access control
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<UserDTO> getUserById(
+    public ResponseEntity<ApiResponse<UserDTO>> getUserById(
             @PathVariable @Positive Long id,
             Principal principal) {
 
-        var user = userService.getUserByIdd(id);
-        return ResponseEntity.ok(user);
+        UserDTO user = userService.getUserById(id);
+        return ResponseEntity.ok(new ApiResponse<UserDTO>(true, "User fetched successfully", user));
     }
 
     /**
@@ -60,9 +63,11 @@ public class UserController {
      */
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserProfileDTO> getCurrentUser(Authentication authentication) {
-        var userProfile = userService.getCurrentUserProfile(authentication.getName());
-        return ResponseEntity.ok(userProfile);
+    public ResponseEntity<ApiResponse<UserDTO>> getCurrentUser(Authentication authentication) {
+        UserDTO userProfile = userService.getCurrentUserProfile(authentication.getName());
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Current user profile retrieved successfully", userProfile)
+        );
     }
 
     /**
@@ -70,7 +75,7 @@ public class UserController {
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<UserDTO>> getAllUsers(
+    public ResponseEntity<ApiResponse<Page<UserDTO>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -79,11 +84,13 @@ public class UserController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active) {
 
-        var sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
-        var pageable = PageRequest.of(page, size, sort);
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        PageRequest pageable = PageRequest.of(page, size, sort);
 
-        var users = userService.getAllUsers(pageable, role, search, active);
-        return ResponseEntity.ok(users);
+        Page<UserDTO> users = userService.getAllUsers(pageable, String.valueOf(role), search, active);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Users retrieved successfully", users)
+        );
     }
 
     /**
@@ -91,9 +98,9 @@ public class UserController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> createUser(@Valid @RequestBody CreateUserRequest request) {
-        var createdUser = userService.createUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
+    public ResponseEntity<ApiResponse<Boolean>> createUser(@Valid @RequestBody CreateUserRequest request) {
+        boolean resp = userService.createUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     /**
@@ -101,13 +108,14 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<UserDTO> updateUser(
+    public ResponseEntity<ApiResponse<UserDTO>> updateUser(
             @PathVariable @Positive Long id,
             @Valid @RequestBody UserProfileDTO dto,
             Principal principal) {
 
-        var updatedUser = userService.updateUserProfilee(id, dto);
-        return ResponseEntity.ok(updatedUser);
+        UserDTO updatedUser = userService.updateUserProfile(id, dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(true, "User created successfully", resp));
     }
 
     /**
@@ -115,13 +123,15 @@ public class UserController {
      */
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<UserDTO> partialUpdateUser(
+    public ResponseEntity<ApiResponse<UserDTO>> partialUpdateUser(
             @PathVariable @Positive Long id,
             @RequestBody Map<String, Object> updates,
             Principal principal) {
 
-        var updatedUser = userService.partialUpdateUser(id, updates);
-        return ResponseEntity.ok(updatedUser);
+        UserDTO updatedUser = userService.partialUpdateUser(id, updates);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User partially updated successfully", updatedUser)
+        );
     }
 
     /**
@@ -129,9 +139,11 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable @Positive Long id) {
+    public ResponseEntity<ApiResponse<Null>> deleteUser(@PathVariable @Positive Long id) {
         userService.deleteUser(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User deleted successfully", null)
+        );
     }
 
     /**
@@ -139,13 +151,15 @@ public class UserController {
      */
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> toggleUserStatus(
+    public ResponseEntity<ApiResponse<UserDTO>> toggleUserStatus(
             @PathVariable @Positive Long id,
             @RequestBody Map<String, Boolean> statusRequest) {
 
         boolean active = statusRequest.get("active");
-        var updatedUser = userService.toggleUserStatus(id, active);
-        return ResponseEntity.ok(updatedUser);
+        UserDTO updatedUser = userService.toggleUserStatus(id, active);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User status updated successfully", updatedUser)
+        );
     }
 
     // ==================== ROLE MANAGEMENT ====================
@@ -155,12 +169,14 @@ public class UserController {
      */
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> updateUserRole(
+    public ResponseEntity<ApiResponse<UserDTO>> updateUserRole(
             @PathVariable @Positive Long id,
             @RequestBody @Valid UpdateRoleRequest request) {
 
-        var updatedUser = userService.updateUserRole(id, request.role());
-        return ResponseEntity.ok(updatedUser);
+        UserDTO updatedUser = userService.updateUserRole(id, request.role());
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User role updated successfully", updatedUser)
+        );
     }
 
     /**
@@ -168,14 +184,16 @@ public class UserController {
      */
     @GetMapping("/by-role/{role}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
-    public ResponseEntity<List<UserDTO>> getUsersByRole(
+    public ResponseEntity<ApiResponse<Page<UserDTO>>> getUsersByRole(
             @PathVariable @Valid Role role,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
 
-        var pageable = PageRequest.of(page, size);
-        var users = userService.getUsersByRole(role, pageable);
-        return ResponseEntity.ok(users);
+        PageRequest pageable = PageRequest.of(page, size);
+        Page<UserDTO> users = userService.getUsersByRole(String.valueOf(role), pageable);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Users by role retrieved successfully", users)
+        );
     }
 
     // ==================== CLASSROOM MANAGEMENT ====================
@@ -185,12 +203,14 @@ public class UserController {
      */
     @GetMapping("/{id}/classrooms")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<List<ClassroomDTO>> getUserClassrooms(
+    public ResponseEntity<ApiResponse<List<ClassroomDTO>>> getUserClassrooms(
             @PathVariable @Positive Long id,
             @RequestParam(defaultValue = "false") boolean includeArchived) {
 
-        var classrooms = userService.getUserClassrooms(id, includeArchived);
-        return ResponseEntity.ok(classrooms);
+        List<ClassroomDTO> classrooms = userService.getUserClassrooms(id, includeArchived);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User classrooms retrieved successfully", classrooms)
+        );
     }
 
     /**
@@ -198,12 +218,14 @@ public class UserController {
      */
     @PostMapping("/{id}/classrooms/{classroomId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
-    public ResponseEntity<Void> addUserToClassroom(
+    public ResponseEntity<ApiResponse<Null>> addUserToClassroom(
             @PathVariable @Positive Long id,
             @PathVariable @Positive Long classroomId) {
 
         userService.addUserToClassroom(id, classroomId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User added to classroom successfully", null)
+        );
     }
 
     /**
@@ -211,12 +233,14 @@ public class UserController {
      */
     @DeleteMapping("/{id}/classrooms/{classroomId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
-    public ResponseEntity<Void> removeUserFromClassroom(
+    public ResponseEntity<ApiResponse<Null>> removeUserFromClassroom(
             @PathVariable @Positive Long id,
             @PathVariable @Positive Long classroomId) {
 
         userService.removeUserFromClassroom(id, classroomId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User removed from classroom successfully", null)
+        );
     }
 
     // ==================== TASK MANAGEMENT ====================
@@ -226,7 +250,7 @@ public class UserController {
      */
     @GetMapping("/{id}/tasks")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<Page<TaskDTO>> getUserTasks(
+    public ResponseEntity<ApiResponse<Page<TaskDTO>>> getUserTasks(
             @PathVariable @Positive Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -235,11 +259,13 @@ public class UserController {
             @RequestParam(defaultValue = "createdDate") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        var sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
-        var pageable = PageRequest.of(page, size, sort);
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        PageRequest pageable = PageRequest.of(page, size, sort);
 
-        var tasks = userService.getUserTasks(id, pageable, status, classroomId);
-        return ResponseEntity.ok(tasks);
+        Page<TaskDTO> tasks = userService.getUserTasks(id, pageable, status, classroomId);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User tasks retrieved successfully", tasks)
+        );
     }
 
     /**
@@ -247,12 +273,14 @@ public class UserController {
      */
     @PostMapping("/{id}/tasks/{taskId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
-    public ResponseEntity<Void> assignTaskToUser(
+    public ResponseEntity<ApiResponse<Null>> assignTaskToUser(
             @PathVariable @Positive Long id,
             @PathVariable @Positive Long taskId) {
 
         userService.assignTaskToUser(id, taskId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task assigned to user successfully", null)
+        );
     }
 
     /**
@@ -260,47 +288,14 @@ public class UserController {
      */
     @DeleteMapping("/{id}/tasks/{taskId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
-    public ResponseEntity<Void> removeTaskFromUser(
+    public ResponseEntity<ApiResponse<Null>> removeTaskFromUser(
             @PathVariable @Positive Long id,
             @PathVariable @Positive Long taskId) {
 
         userService.removeTaskFromUser(id, taskId);
-        return ResponseEntity.noContent().build();
-    }
-
-    // ==================== PARENT-STUDENT RELATIONSHIPS ====================
-
-    /**
-     * Get parent's children (for parent role)
-     */
-    @GetMapping("/{id}/children")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('PARENT') and @userService.canAccessUser(authentication.name, #id))")
-    public ResponseEntity<List<UserDTO>> getParentChildren(@PathVariable @Positive Long id) {
-        var children = userService.getParentChildren(id);
-        return ResponseEntity.ok(children);
-    }
-
-    /**
-     * Add child to parent
-     */
-    @PostMapping("/{parentId}/children/{childId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> addChildToParent(
-            @PathVariable @Positive Long parentId,
-            @PathVariable @Positive Long childId) {
-
-        userService.addChildToParent(parentId, childId);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * Get student's parents
-     */
-    @GetMapping("/{id}/parents")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<List<UserDTO>> getStudentParents(@PathVariable @Positive Long id) {
-        var parents = userService.getStudentParents(id);
-        return ResponseEntity.ok(parents);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task removed from user successfully", null)
+        );
     }
 
     // ==================== ACCOUNT METADATA ====================
@@ -310,12 +305,14 @@ public class UserController {
      */
     @PutMapping("/{id}/preferences")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<UserPreferencesDTO> updateUserPreferences(
+    public ResponseEntity<ApiResponse<UserPreferencesDTO>> updateUserPreferences(
             @PathVariable @Positive Long id,
             @Valid @RequestBody UserPreferencesDTO preferences) {
 
-        var updatedPreferences = userService.updateUserPreferences(id, preferences);
-        return ResponseEntity.ok(updatedPreferences);
+        UserPreferencesDTO updatedPreferences = userService.updateUserPreferences(id, preferences);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User preferences updated successfully", updatedPreferences)
+        );
     }
 
     /**
@@ -323,9 +320,11 @@ public class UserController {
      */
     @GetMapping("/{id}/preferences")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<UserPreferencesDTO> getUserPreferences(@PathVariable @Positive Long id) {
-        var preferences = userService.getUserPreferences(id);
-        return ResponseEntity.ok(preferences);
+    public ResponseEntity<ApiResponse<UserPreferencesDTO>> getUserPreferences(@PathVariable @Positive Long id) {
+        UserPreferencesDTO preferences = userService.getUserPreferences(id);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User preferences retrieved successfully", preferences)
+        );
     }
 
     /**
@@ -333,65 +332,14 @@ public class UserController {
      */
     @PostMapping("/{id}/avatar")
     @PreAuthorize("hasRole('ADMIN') or @userService.canAccessUser(authentication.name, #id)")
-    public ResponseEntity<Map<String, String>> updateUserAvatar(
+    public ResponseEntity<ApiResponse<Map<String, String>>> updateUserAvatar(
             @PathVariable @Positive Long id,
             @RequestParam("file") MultipartFile file) {
 
         var avatarUrl = userService.updateUserAvatar(id, file);
-        return ResponseEntity.ok(Map.of("avatarUrl", avatarUrl));
-    }
-
-    // ==================== SEARCH AND FILTERING ====================
-
-    /**
-     * Search users by multiple criteria
-     */
-    @PostMapping("/search")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
-    public ResponseEntity<Page<UserDTO>> searchUsers(
-            @Valid @RequestBody UserSearchRequest searchRequest,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-
-        var pageable = PageRequest.of(page, size);
-        var users = userService.searchUsers(searchRequest, pageable);
-        return ResponseEntity.ok(users);
-    }
-
-//    /**
-//     * Get user statistics (Admin only)
-//     */
-//    @GetMapping("/statistics")
-//    @PreAuthorize("hasRole('ADMIN')")
-//    public ResponseEntity<UserStatisticsDTO> getUserStatistics() {
-//        var statistics = userService.getUserStatistics();
-//        return ResponseEntity.ok(statistics);
-//    }
-
-    // ==================== BULK OPERATIONS ====================
-
-    /**
-     * Bulk create users (Admin only)
-     */
-    @PostMapping("/bulk")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BulkOperationResult> bulkCreateUsers(
-            @Valid @RequestBody List<CreateUserRequest> requests) {
-
-        var result = userService.bulkCreateUsers(requests);
-        return ResponseEntity.ok(result);
-    }
-
-    /**
-     * Bulk update users (Admin only)
-     */
-    @PutMapping("/bulk")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<BulkOperationResult> bulkUpdateUsers(
-            @Valid @RequestBody List<BulkUpdateUserRequest> requests) {
-
-        var result = userService.bulkUpdateUsers(requests);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User avatar updated successfully", Map.of("avatarUrl", avatarUrl))
+        );
     }
 
     /**
@@ -399,67 +347,33 @@ public class UserController {
      */
     @GetMapping("/export")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<byte[]> exportUsers(
+    public ResponseEntity<ApiResponse<byte[]>> exportUsers(
             @RequestParam(required = false) Role role,
             @RequestParam(required = false) List<Long> classroomIds) {
 
-        var csvData = userService.exportUsersToCSV(role, classroomIds);
+        byte[] csvData = userService.exportUsersToCSV(String.valueOf(role), classroomIds);
 
-        return ResponseEntity.ok()
-                .header("Content-Type", "text/csv")
-                .header("Content-Disposition", "attachment; filename=users.csv")
-                .body(csvData);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Users exported to CSV successfully", csvData)
+        );
     }
 
-    // ==================== VALIDATION AND UTILITY ====================
-
-    /**
-     * Check if username is available
-     */
-    @GetMapping("/check-username")
-    public ResponseEntity<Map<String, Boolean>> checkUsernameAvailability(
-            @RequestParam String username) {
-
-        var available = userService.isUsernameAvailable(username);
-        return ResponseEntity.ok(Map.of("available", available));
-    }
-
-    /**
-     * Check if email is available
-     */
-    @GetMapping("/check-email")
-    public ResponseEntity<Map<String, Boolean>> checkEmailAvailability(
-            @RequestParam String email) {
-
-        var available = userService.isEmailAvailable(email);
-        return ResponseEntity.ok(Map.of("available", available));
-    }
 
     /**
      * Get user activity log (Admin only)
      */
     @GetMapping("/{id}/activity")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<UserActivityDTO>> getUserActivity(
+    public ResponseEntity<ApiResponse<Page<UserActivityDTO>>> getUserActivity(
             @PathVariable @Positive Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        var pageable = PageRequest.of(page, size);
-        var activities = userService.getUserActivity(id, pageable);
-        return ResponseEntity.ok(activities);
-    }
+        PageRequest pageable = PageRequest.of(page, size);
+        Page<UserActivityDTO> activities = userService.getUserActivity(id, pageable);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User activity log retrieved successfully", activities)
+        );
 
-    // ==================== HELPER METHODS ====================
-
-    private Long getCurrentUserId() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return userService.getUserIdByUsername(authentication.getName());
-    }
-
-    private boolean isCurrentUserAdmin() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication.getAuthorities().stream()
-                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
     }
 }

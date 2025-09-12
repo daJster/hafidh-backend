@@ -1,7 +1,6 @@
 package com.hafidh.security;
 
-import com.hafidh.entity.User_old;
-import com.hafidh.repository.UserRepository;
+import com.hafidh.repository.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;

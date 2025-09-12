@@ -1,6 +1,5 @@
 package com.hafidh.security;
 
-import com.hafidh.entity.User_old;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
